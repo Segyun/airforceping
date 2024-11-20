@@ -2,6 +2,7 @@
 
 import time
 
+from collections import Counter
 from std_msgs.msg import String
 
 # from detection_msgs.msg import BoundingBox, BoundingBoxes
@@ -68,80 +69,116 @@ class ObjectDetect:
     """
 
     def __init__(
-        self, drive_publisher, lcd_publisher, detect_bbox, sec=3, on_device=True
+        self, drive_publisher, lcd_publisher, detect_bbox, sec=5, on_robot=True
     ):
         self.drive_publisher = drive_publisher
         self.lcd_publisher = lcd_publisher
         self.detect_bbox = detect_bbox
         self.sec = sec
-        self.on_device = on_device
+        self.on_robot = on_robot
         self.timer = None
-        # 원격으로 실행할 경우
-        if not self.on_device:
-            from ultralytics import YOLO
 
-            PATH = "model/best.pt"
-
-            self.model = YOLO(PATH)
+    def find_mode(numbers):
+        counter = Counter(numbers)
+        mode = counter.most_common(1)
+        return mode[0][0]
 
     def execute(self, img):
         if self.timer is None:
             self.timer = time.time()
-        elif time.time() - self.timer >= self.sec:
-            if not self.on_device:
-                det_bboxes = self.detect_bbox
+        elif time.time() - self.timer < self.sec:
+            if not self.on_robot:
+                start_time = time.time()
+
+                # PID
                 pid = PID(0.01, 0.1, 0.5)
 
-                str_msg_1 = String()  # lcd msg
-                start_time = time.time()
-                event = 0
-                rot_start = 0  # 회전 flag
+                # Detect Bounding Boxes
+                det_bboxes = self.detect_bbox
 
-                while event == 0:  # 이벤트 발생할때 까지 회전
+                # LCD Message
+                str_msg_1 = String()
+
+                # Event Flag
+                event = 0
+
+                # Rotate Flag
+                rot_start = 0
+
+                # 최빈값 계산을 위한 리스트
+                candidates_alli = []
+                candidates_alli_tank = []
+                candidates_enem = []
+                candidates_enem_tank = []
+
+                # 이벤트 발생할 때까지 회전
+                while event == 0:
+                    curr_time = time.time()
+
                     alli = 0
                     alli_tank = 0
                     enem = 0
                     enem_tank = 0
-                    curr_time = time.time()
 
-                    for bbox in det_bboxes.bounding_boxes:  # 객체 count 및 위치파악
-                        if bbox.probability > 0.5:
-                            if bbox.Class == "alli":
+                    # 객체 count 및 위치파악
+                    for bbox in det_bboxes.bounding_boxes:
+                        if bbox.probability > 0.75:
+                            if bbox.Class == "al":
                                 alli += 1
-                            elif bbox.Class == "alli_tank":
+                            elif bbox.Class == "alt":
                                 alli_tank += 1
-                            elif bbox.Class == "enem":
+                            elif bbox.Class == "en":
                                 enem += 1
                             else:
                                 enem_tank += 1
                                 enem_tank_x = (bbox.xmin + bbox.xmax) / 2
 
+                    candidates_alli.append(alli)
+                    candidates_alli_tank.append(alli_tank)
+                    candidates_enem.append(enem)
+                    candidates_enem_tank.append(enem_tank)
+
+                    # LCD Display Text
                     str_msg_1.data = "alli: {}/{},enem: {}/{}".format(
                         alli, alli_tank, enem, enme_tank
-                    )  # lcd string
+                    )
 
-                    if enem_tank:  # 이벤트가 있는 경우
-                        x_err = 320 - enem_tank_x  # 화면 중심과 bbox 사이의 거리
-                        theta = pid.pid_control(x_err)  # 회전 조향각
+                    # 이벤트가 있는 경우
+                    if enem_tank:
+                        # 화면 중심과 bbox 사이의 거리
+                        x_err = 320 - enem_tank_x
+                        # 회전 조향각
+                        theta = pid.pid_control(x_err)
 
                         rot_msg = Twist()
                         rot_msg.linear.x = 0
                         rot_msg.angular.z = theta
+                        
                         self.drive_publisher.publish(rot_msg)
 
-                        if abs(x_err) < 5:  # bbox가 화면 중심에 위치
+                        # bbox가 화면 중심에 위치
+                        if abs(x_err) < 10:
                             if rot_start == 0:
                                 rot_start_time = curr_time
                                 rot_start = 1
                             elif curr_time - rot_start_time > 5:
+                                # 최빈값 계산
+                                alli_mode = self.find_mode(candidates_alli)
+                                alli_tank_mode = self.find_mode(candidates_alli_tank)
+                                enem_mode = self.find_mode(candidates_enem)
+                                enem_tank_mode = self.find_mode(candidates_enem_tank)
+
+                                # 이벤트 발생 시 LCD Display Text
                                 str_msg_1.data = "alli: {}/{},enem: {}/{} HIT!".format(
-                                    alli, alli_tank, enem, enme_tank
-                                )  # 이벤트 발생 lcd string
+                                    alli_mode, alli_tank_mode, enem_mode, enem_tank_mode
+                                )
                                 event = 1
                     else:
                         if curr_time - start_time > 5:
                             event = 1
 
                     self.lcd_publisher.publish(str_msg_1)
+            return False, 0, 0, False
+        else:
             return True, 0, 0, False
-        return False, 0, 0, False
+
