@@ -21,24 +21,33 @@ def gaussian_blur(img):
     return cv2.GaussianBlur(img, (0, 0), 5)
 
 
-def green_detect(img):
-    h, w, c = img.shape
-    center = np.array([w, h], np.uint32) // 2
-    roi_size = np.array([w, h], np.uint32) // 2
+class GreenDetect:
+    def __init__(self):
+        self.count = 0
 
-    left_top = center - roi_size // 2
-    roi_img = img[
-        left_top[1] : left_top[1] + roi_size[1],
-        left_top[0] : left_top[0] + roi_size[0],
-    ].copy()
+    def execute(self, img):
+        h, w, c = img.shape
+        center = np.array([w, h], np.uint32) // 2
+        roi_size = np.array([w, h], np.uint32) // 2
 
-    hsv_img = convert_to_hsv(roi_img)
+        left_top = center - roi_size // 2
+        roi_img = img[
+            left_top[1] : left_top[1] + roi_size[1],
+            left_top[0] : left_top[0] + roi_size[0],
+        ].copy()
 
-    gaussian_img = gaussian_blur(hsv_img)
+        hsv_img = convert_to_hsv(roi_img)
 
-    masked_img = color_filter(gaussian_img, [50, 50, 0], [80, 255, 255])
+        gaussian_img = gaussian_blur(hsv_img)
 
-    return len(masked_img.nonzero()[0]) > 10000
+        masked_img = color_filter(gaussian_img, [50, 50, 0], [80, 255, 255])
+
+        if len(masked_img.nonzero()[0]) > 10000:
+            self.count += 1
+
+        if self.count >= 10:
+            return True, 0, 0, True
+        return False, 0, 0, True
 
 
 if __name__ == "__main__":
@@ -75,7 +84,8 @@ if __name__ == "__main__":
         masked_img = color_filter(gaussian_img, [50, 50, 0], [80, 255, 255])
         cv2.imshow("Masked", masked_img)
 
-        print(green_detect(img))
+        green_detect = GreenDetect()
+        print(green_detect.execute(img))
 
         if cv2.waitKey(1000 // 30) == ord("q"):
             cap.release()
