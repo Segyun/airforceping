@@ -3,7 +3,8 @@
 import time
 
 from std_msgs.msg import String
-from detection_msgs.msg import BoundingBox, BoundingBoxes
+
+# from detection_msgs.msg import BoundingBox, BoundingBoxes
 from geometry_msgs.msg import Twist
 
 
@@ -13,7 +14,8 @@ class BBox:
     """
 
     def __init__(self):
-        self.bounding_boxes = BoundingBoxes()
+        self.bounding_boxes = None
+        # self.bounding_boxes = BoundingBoxes()
 
     def bounding_boxes_callback(self, msg):
         self.bounding_boxes = msg
@@ -114,7 +116,9 @@ class ObjectDetect:
                                 enem_tank += 1
                                 enem_tank_x = (bbox.xmin + bbox.xmax) / 2
 
-                    str_msg_1.data = f"alli: {alli}/{alli_tank},enem: {enem}/{enem_tank}"  # lcd string
+                    str_msg_1.data = "alli: {}/{},enem: {}/{}".format(
+                        alli, alli_tank, enem, enme_tank
+                    )  # lcd string
 
                     if enem_tank:  # 이벤트가 있는 경우
                         x_err = 320 - enem_tank_x  # 화면 중심과 bbox 사이의 거리
@@ -130,7 +134,9 @@ class ObjectDetect:
                                 rot_start_time = curr_time
                                 rot_start = 1
                             elif curr_time - rot_start_time > 5:
-                                str_msg_1.data = f"alli: {alli}/{alli_tank},enem: {enem}/{enem_tank} HIT!"  # 이벤트 발생 lcd string
+                                str_msg_1.data = "alli: {}/{},enem: {}/{} HIT!".format(
+                                    alli, alli_tank, enem, enme_tank
+                                )  # 이벤트 발생 lcd string
                                 event = 1
                     else:
                         if curr_time - start_time > 5:

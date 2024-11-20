@@ -4,11 +4,11 @@ import time
 import numpy as np
 
 
-MAX_STEER = np.radians(90)
+MAX_STEER = np.radians(45)
 
 
 class TurnLeft:
-    def __init__(self, sec=1):
+    def __init__(self, sec=3):
         self.timer = None
         self.sec = sec
 
@@ -16,12 +16,12 @@ class TurnLeft:
         if self.timer is None:
             self.timer = time.time()
         elif time.time() - self.timer >= self.sec:
-            return False, 0, 0, False
-        return True, 0, MAX_STEER, False
+            return True, 0, 0, False
+        return False, 0, MAX_STEER, False
 
 
 class TurnRight:
-    def __init__(self, sec=1):
+    def __init__(self, sec=3):
         self.timer = None
         self.sec = sec
 
@@ -29,5 +29,5 @@ class TurnRight:
         if self.timer is None:
             self.timer = time.time()
         elif time.time() - self.timer >= self.sec:
-            return False, 0, 0, False
-        return True, 0, -MAX_STEER, False
+            return True, 0, 0, False
+        return False, 0, -MAX_STEER, False

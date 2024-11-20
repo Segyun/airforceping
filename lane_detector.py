@@ -2,7 +2,8 @@
 
 import cv2
 import numpy as np
-import scipy
+
+# import scipy
 
 
 def warping(image):
@@ -37,12 +38,12 @@ def gaussian_blur(img):
 def sliding_window_lane(mask):
     WINDOW_WIDTH = 80
     WINDOW_HEIGHT = 8
-    WINDOW_CNT = 10
+    WINDOW_CNT = 20
 
     h, w = mask.shape
 
     hist = np.mean(mask[h // 2 :], axis=0, dtype="float32")
-    hist = scipy.ndimage.gaussian_filter1d(hist, 15, mode="nearest")
+    # hist = scipy.ndimage.gaussian_filter1d(hist, 15, mode="nearest")
 
     img = np.expand_dims(mask, -1)
     img = np.tile(img, [1, 1, 3])
@@ -98,7 +99,7 @@ def stanley(lane, speed, img_h, img_w):
     derived_lane = np.polyder(lane)
     lane_angle = np.polyval(derived_lane, img_h * 0.9)
 
-    k = 0.001
+    k = 0.005
     theta_err = lane_angle
     lat_err = -distance * np.cos(lane_angle)
 

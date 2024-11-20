@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import time
+import math
 import numpy as np
 import rospy
 import cv2
@@ -10,7 +11,8 @@ from cv_bridge import CvBridge
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import CompressedImage, Image, Imu
 from std_msgs.msg import String
-from detection_msgs.msg import BoundingBox, BoundingBoxes
+
+# from detection_msgs.msg import BoundingBox, BoundingBoxes
 
 from sleep import *
 from halt import *
@@ -23,8 +25,9 @@ from green_detector import *
 class RobotControlNode:
     def __init__(self):
         # 최대 속도 및 회전속도 설정
-        self.MAX_SPEED = 0.2
-        self.MAX_ROTATE = np.radians(90)
+        self.MAX_SPEED = 0.3
+        self.MAX_ROTATE = np.radians(45)
+        self.TURN_90 = math.pi / (2 * self.MAX_ROTATE)
 
         # Publisher 설정
         self.bridge = CvBridge()
@@ -36,35 +39,38 @@ class RobotControlNode:
         self.tasks = [
             # 첫 번째 교차로
             GreenDetect(),
-            TurnLeft(),
+            Sleep(0.5),
+            TurnLeft(self.TURN_90),
             # 1구역 인식
             GreenDetect(),
-            TurnLeft(),
+            TurnLeft(self.TURN_90),
             ObjectDetect(self.drive_publisher, self.lcd_publisher, self.detect_bbox),
-            TurnLeft(),
+            TurnLeft(self.TURN_90),
             Sleep(),
             # 교차로 빠져 나옴
-            TurnLeft(),
+            TurnLeft(self.TURN_90),
+            Sleep(),
             # 2구역 인식
             GreenDetect(),
-            TurnLeft(),
+            TurnLeft(self.TURN_90),
             ObjectDetect(self.drive_publisher, self.lcd_publisher, self.detect_bbox),
-            TurnRight(),
+            TurnRight(self.TURN_90),
+            Sleep(),
             # 두 번째 교차로
             GreenDetect(),
-            TurnRight(),
+            TurnRight(self.TURN_90),
             # 3구역 인식
             GreenDetect(),
-            TurnLeft(),
+            TurnLeft(self.TURN_90),
             ObjectDetect(self.drive_publisher, self.lcd_publisher, self.detect_bbox),
-            TurnRight(),
+            TurnRight(self.TURN_90),
             # 4구역 인식
             GreenDetect(),
-            TurnLeft(),
+            TurnLeft(self.TURN_90),
             ObjectDetect(self.drive_publisher, self.lcd_publisher, self.detect_bbox),
-            TurnRight(),
-            Sleep(),
-            TurnLeft(),
+            TurnRight(self.TURN_90),
+            Sleep(1.5),
+            TurnLeft(self.TURN_90),
             # 도착 지점
             GreenDetect(),
             Halt(),
@@ -74,9 +80,7 @@ class RobotControlNode:
         rospy.init_node("robot_control_node", anonymous=False)
         rospy.Subscriber("/main_camera/image_raw", Image, self.camera_callback)
         # rospy.Subscriber('/main_camera/image_raw/compressed', CompressedImage, self.camera_callback)
-        rospy.Subscriber(
-            "/detected_bboxes", BoundingBoxes, self.detect_bbox.bounding_boxes_callback
-        )
+        # rospy.Subscriber("/detected_bboxes", BoundingBoxes, self.detect_bbox.bounding_boxes_callback)
 
     def camera_callback(self, data):
         """
@@ -88,7 +92,7 @@ class RobotControlNode:
         # 태스크 수행
         is_success, speed, rotate, is_following_lane = self.tasks[
             self.task_index
-        ].excute(image)
+        ].execute(image)
 
         # 태스크 성공 시 다음 태스크 진행
         if is_success and self.task_index < len(self.tasks):
@@ -111,8 +115,8 @@ class RobotControlNode:
         속도 및 가속도를 업데이트하는 함수
         """
         movement = Twist()
-        movement.linear.x = x * 2
-        movement.angular.z = z * 2
+        movement.linear.x = x
+        movement.angular.z = z
         self.drive_publisher.publish(movement)
 
 

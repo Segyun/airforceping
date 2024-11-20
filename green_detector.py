@@ -42,10 +42,14 @@ class GreenDetect:
 
         masked_img = color_filter(gaussian_img, [50, 50, 0], [80, 255, 255])
 
-        if len(masked_img.nonzero()[0]) > 10000:
+        cv2.imshow("Green", masked_img)
+
+        # print("Green:", len(masked_img.nonzero()[0]))
+
+        if len(masked_img.nonzero()[0]) > 6000:
             self.count += 1
 
-        if self.count >= 10:
+        if self.count >= 3:
             return True, 0, 0, True
         return False, 0, 0, True
 
